@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>活動統計管理後台</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      background: #f3f5f9;
+      color: #1f2937;
+    }
+    .container { max-width: 1180px; margin: auto; padding: 20px; }
+    .card {
+      background: white;
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 18px;
+      box-shadow: 0 4px 15px rgba(0,0,0,.06);
+    }
+    .login-card { max-width: 480px; margin: 70px auto; }
+    h1, h2, h3 { margin-top: 0; }
+    .muted { color: #6b7280; }
+    .hidden { display: none !important; }
+    label { display: block; font-weight: 700; margin: 12px 0 7px; }
+    input, select {
+      width: 100%;
+      padding: 12px 13px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px;
+      font-size: 16px;
+      background: white;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 15px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .primary { background: #2563eb; color: white; }
+    .secondary { background: #eef2ff; color: #3730a3; }
+    .danger { background: #fee2e2; color: #b91c1c; }
+    .success { background: #dcfce7; color: #166534; }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      background: #e5e7eb;
+    }
+    .badge.supervisor { background: #dcfce7; color: #166534; }
+    .toolbar {
+      display: grid;
+      grid-template-columns: auto minmax(180px, 260px) auto auto;
+      gap: 10px;
+      align-items: end;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .stat {
+      background: #f8fafc;
+      border-radius: 14px;
+      padding: 15px;
+    }
+    .stat .name { color: #6b7280; font-size: 14px; }
+    .stat .num { font-size: 30px; font-weight: 800; margin-top: 4px; }
+    .special-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .history-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .history-buttons button.active { background: #2563eb; color: white; }
+    .edit-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .notice {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      margin-bottom: 14px;
+    }
+    .error {
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #fef2f2;
+      color: #b91c1c;
+      margin-top: 12px;
+    }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f9fafb; }
+    .row-actions { display: flex; gap: 6px; }
+    .other-list { margin: 0; padding-left: 20px; line-height: 1.8; }
+    .login-actions { margin-top: 16px; }
+    .top-link a { color: #2563eb; text-decoration: none; }
+    @media(max-width: 760px) {
+      .container { padding: 12px; }
+      .stats-grid, .edit-grid, .special-grid { grid-template-columns: 1fr 1fr; }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+    }
+    @media(max-width: 480px) {
+      .stats-grid, .edit-grid, .special-grid, .toolbar { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loginView" class="container">
+  <div class="card login-card">
+    <h1>管理後台登入</h1>
+    <p class="muted">一般帳號可查看資料；主管帳號另外具有修改與刪除權限。</p>
+
+    <form id="loginForm">
+      <label for="email">電子郵件</label>
+      <input id="email" type="email" required autocomplete="username">
+
+      <label for="password">密碼</label>
+      <input id="password" type="password" required autocomplete="current-password">
+
+      <div class="login-actions">
+        <button class="primary" style="width:100%" type="submit">登入後台</button>
+      </div>
+    </form>
+
+    <div id="loginError" class="error hidden"></div>
+    <p class="top-link" style="margin-top:16px;"><a href="./index.html">← 回現場統計頁</a></p>
+  </div>
+</div>
+
+<div id="adminView" class="container hidden">
+  <div class="header">
+    <div>
+      <h1 style="margin-bottom:6px;">活動統計管理後台</h1>
+      <div class="muted">
+        <span id="userEmail"></span>
+        <span id="roleBadge" class="badge"></span>
+      </div>
+    </div>
+    <div>
+      <button id="logoutBtn" class="secondary">登出</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <button id="prevDayBtn" class="secondary">← 前一天</button>
+      <div>
+        <label for="datePicker" style="margin-top:0;">查看日期</label>
+        <input id="datePicker" type="date">
+      </div>
+      <button id="todayBtn" class="secondary">今天</button>
+      <button id="nextDayBtn" class="secondary">後一天 →</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>近期有資料日期</h2>
+    <div id="historyButtons" class="history-buttons">
+      <span class="muted">讀取中...</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="summaryTitle">即時統計</h2>
+
+    <div class="stats-grid">
+      <div class="stat"><div class="name">📱 市民卡 APP</div><div id="appCount" class="num">0</div></div>
+      <div class="stat"><div class="name">👥 親友</div><div id="friendCount" class="num">0</div></div>
+      <div class="stat"><div class="name">🚶 路過</div><div id="walkCount" class="num">0</div></div>
+      <div class="stat"><div class="name">🎤 KOL</div><div id="kolCount" class="num">0</div></div>
+      <div class="stat"><div class="name">📢 實體廣告</div><div id="adCount" class="num">0</div></div>
+      <div class="stat"><div class="name">➕ 其他</div><div id="otherCount" class="num">0</div></div>
+    </div>
+
+    <div class="special-grid">
+      <div class="stat"><div class="name">來源調查總數</div><div id="totalCount" class="num">0</div></div>
+      <div class="stat"><div class="name">展覽人次</div><div id="visitorDisplay" class="num">0</div></div>
+      <div class="stat"><div class="name">市民卡禮物兌換</div><div id="giftDisplay" class="num">0</div></div>
+    </div>
+  </div>
+
+  <div id="supervisorPanel" class="card hidden">
+    <h2>主管編輯</h2>
+    <div class="notice">輸入你希望顯示的「最終人數」。系統會以修正值保存，因此之後新增的新資料仍會繼續累加。</div>
+
+    <div class="edit-grid">
+      <div><label for="editApp">市民卡 APP</label><input id="editApp" type="number" min="0" step="1"></div>
+      <div><label for="editFriend">親友</label><input id="editFriend" type="number" min="0" step="1"></div>
+      <div><label for="editWalk">路過</label><input id="editWalk" type="number" min="0" step="1"></div>
+      <div><label for="editKol">KOL</label><input id="editKol" type="number" min="0" step="1"></div>
+      <div><label for="editAd">實體廣告</label><input id="editAd" type="number" min="0" step="1"></div>
+      <div><label for="editOther">其他</label><input id="editOther" type="number" min="0" step="1"></div>
+      <div><label for="editVisitor">展覽人次</label><input id="editVisitor" type="number" min="0" step="1"></div>
+      <div><label for="editGift">禮物兌換人數</label><input id="editGift" type="number" min="0" step="1"></div>
+    </div>
+
+    <div style="margin-top:14px;">
+      <button id="saveEditBtn" class="success">✓ 儲存主管修正</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>其他來源明細</h2>
+    <ul id="otherDetails" class="other-list">
+      <li class="muted">無資料</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>當日原始紀錄</h2>
+    <p class="muted">一般帳號只能查看；主管可編輯分類或刪除紀錄。</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>時間</th>
+            <th>來源</th>
+            <th>其他明細</th>
+            <th>類型</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="recordsBody">
+          <tr><td colspan="5" class="muted">讀取中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { auth, db, SUPERVISOR_UID } from "./firebase-config.js";
+  import {
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
+  import {
+    collection, query, where, onSnapshot, doc, setDoc, serverTimestamp,
+    updateDoc, deleteDoc, orderBy, limit
+  } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+
+  const SOURCES = ["市民卡 APP", "親友", "路過", "KOL", "實體廣告", "其他"];
+
+  const $ = id => document.getElementById(id);
+
+  function taipeiDateKey(date = new Date()) {
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).format(date);
+  }
+
+  function addDays(dateKey, amount) {
+    const [y, m, d] = dateKey.split("-").map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    dt.setUTCDate(dt.getUTCDate() + amount);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  let currentUser = null;
+  let isSupervisor = false;
+  let selectedDate = taipeiDateKey();
+  let records = [];
+  let dailyData = {};
+  let stopRecords = null;
+  let stopDaily = null;
+  let stopHistory = null;
+
+  function baseCount(source) {
+    return Math.max(0, records
+      .filter(r => r.source === source)
+      .reduce((sum, r) => sum + (Number(r.delta) || 0), 0));
+  }
+
+  function adjustment(source) {
+    return Number(dailyData?.adjustments?.[source] || 0);
+  }
+
+  function finalCount(source) {
+    return Math.max(0, baseCount(source) + adjustment(source));
+  }
+
+  function formatTimestamp(ts) {
+    if (!ts?.toDate) return "同步中";
+    return ts.toDate().toLocaleString("zh-TW", {
+      timeZone: "Asia/Taipei",
+      hour12: false
+    });
+  }
+
+  function renderSummary() {
+    $("summaryTitle").textContent = `${selectedDate} 即時統計`;
+
+    const map = {
+      "市民卡 APP": "appCount",
+      "親友": "friendCount",
+      "路過": "walkCount",
+      "KOL": "kolCount",
+      "實體廣告": "adCount",
+      "其他": "otherCount"
+    };
+
+    SOURCES.forEach(source => {
+      $(map[source]).textContent = finalCount(source);
+    });
+
+    $("totalCount").textContent = SOURCES.reduce((s, x) => s + finalCount(x), 0);
+    $("visitorDisplay").textContent = Number(dailyData.visitorCount || 0);
+    $("giftDisplay").textContent = Number(dailyData.giftCount || 0);
+
+    if (isSupervisor) {
+      $("editApp").value = finalCount("市民卡 APP");
+      $("editFriend").value = finalCount("親友");
+      $("editWalk").value = finalCount("路過");
+      $("editKol").value = finalCount("KOL");
+      $("editAd").value = finalCount("實體廣告");
+      $("editOther").value = finalCount("其他");
+      $("editVisitor").value = Number(dailyData.visitorCount || 0);
+      $("editGift").value = Number(dailyData.giftCount || 0);
+    }
+
+    renderOtherDetails();
+    renderRecords();
+  }
+
+  function renderOtherDetails() {
+    const detailMap = {};
+    records
+      .filter(r => r.source === "其他" && r.detail)
+      .forEach(r => {
+        detailMap[r.detail] = (detailMap[r.detail] || 0) + (Number(r.delta) || 0);
+      });
+
+    const items = Object.entries(detailMap).filter(([, n]) => n > 0);
+    const ul = $("otherDetails");
+    ul.innerHTML = "";
+
+    if (!items.length) {
+      ul.innerHTML = '<li class="muted">無其他來源明細</li>';
+      return;
+    }
+
+    items.sort((a, b) => b[1] - a[1]).forEach(([name, count]) => {
+      const li = document.createElement("li");
+      li.textContent = `${name}：${count} 人`;
+      ul.appendChild(li);
+    });
+  }
+
+  function renderRecords() {
+    const body = $("recordsBody");
+    body.innerHTML = "";
+
+    const sorted = [...records].sort((a, b) => {
+      const at = a.createdAt?.seconds || 0;
+      const bt = b.createdAt?.seconds || 0;
+      return bt - at;
+    });
+
+    if (!sorted.length) {
+      body.innerHTML = '<tr><td colspan="5" class="muted">當日沒有紀錄</td></tr>';
+      return;
+    }
+
+    sorted.forEach(r => {
+      const tr = document.createElement("tr");
+
+      const actionHtml = isSupervisor
+        ? `<div class="row-actions">
+             <button class="secondary edit-record" data-id="${r.id}">編輯</button>
+             <button class="danger delete-record" data-id="${r.id}">刪除</button>
+           </div>`
+        : '<span class="muted">僅供查看</span>';
+
+      tr.innerHTML = `
+        <td>${formatTimestamp(r.createdAt)}</td>
+        <td>${escapeHtml(r.source || "")}</td>
+        <td>${escapeHtml(r.detail || "—")}</td>
+        <td>${Number(r.delta) === -1 ? "復原 -1" : "新增 +1"}</td>
+        <td>${actionHtml}</td>
+      `;
+      body.appendChild(tr);
+    });
+
+    if (isSupervisor) {
+      body.querySelectorAll(".delete-record").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          if (!confirm("確定刪除這筆原始紀錄？")) return;
+          await deleteDoc(doc(db, "activityRecords", btn.dataset.id));
+        });
+      });
+
+      body.querySelectorAll(".edit-record").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const r = records.find(x => x.id === btn.dataset.id);
+          if (!r) return;
+
+          const source = prompt(
+            "請輸入分類：\n市民卡 APP / 親友 / 路過 / KOL / 實體廣告 / 其他",
+            r.source
+          );
+          if (source === null) return;
+          if (!SOURCES.includes(source.trim())) {
+            alert("分類名稱不正確。");
+            return;
+          }
+
+          let detail = "";
+          if (source.trim() === "其他") {
+            detail = prompt("請輸入其他來源明細：", r.detail || "") ?? "";
+          }
+
+          await updateDoc(doc(db, "activityRecords", r.id), {
+            source: source.trim(),
+            detail: detail.trim()
+          });
+        });
+      });
+    }
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function startDateListeners() {
+    if (stopRecords) stopRecords();
+    if (stopDaily) stopDaily();
+
+    $("datePicker").value = selectedDate;
+
+    const q = query(
+      collection(db, "activityRecords"),
+      where("dateKey", "==", selectedDate)
+    );
+
+    stopRecords = onSnapshot(q, snap => {
+      records = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderSummary();
+    });
+
+    stopDaily = onSnapshot(doc(db, "dailyStats", selectedDate), snap => {
+      dailyData = snap.exists() ? snap.data() : {};
+      renderSummary();
+    });
+  }
+
+  function startHistoryListener() {
+    if (stopHistory) stopHistory();
+
+    const q = query(
+      collection(db, "dailyStats"),
+      orderBy("dateKey", "desc"),
+      limit(30)
+    );
+
+    stopHistory = onSnapshot(q, snap => {
+      const wrap = $("historyButtons");
+      wrap.innerHTML = "";
+
+      const dates = snap.docs.map(d => d.data().dateKey || d.id);
+      if (!dates.length) {
+        wrap.innerHTML = '<span class="muted">尚無歷史資料</span>';
+        return;
+      }
+
+      dates.forEach(date => {
+        const btn = document.createElement("button");
+        btn.className = date === selectedDate ? "active" : "secondary";
+        btn.textContent = date;
+        btn.addEventListener("click", () => {
+          selectedDate = date;
+          startDateListeners();
+          startHistoryListener();
+        });
+        wrap.appendChild(btn);
+      });
+    });
+  }
+
+  $("loginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    $("loginError").classList.add("hidden");
+
+    try {
+      await signInWithEmailAndPassword(
+        auth,
+        $("email").value.trim(),
+        $("password").value
+      );
+    } catch (err) {
+      console.error(err);
+      $("loginError").textContent = "登入失敗，請確認帳號與密碼。";
+      $("loginError").classList.remove("hidden");
+    }
+  });
+
+  $("logoutBtn").addEventListener("click", () => signOut(auth));
+
+  $("datePicker").addEventListener("change", () => {
+    if (!$("datePicker").value) return;
+    selectedDate = $("datePicker").value;
+    startDateListeners();
+    startHistoryListener();
+  });
+
+  $("todayBtn").addEventListener("click", () => {
+    selectedDate = taipeiDateKey();
+    startDateListeners();
+    startHistoryListener();
+  });
+
+  $("prevDayBtn").addEventListener("click", () => {
+    selectedDate = addDays(selectedDate, -1);
+    startDateListeners();
+    startHistoryListener();
+  });
+
+  $("nextDayBtn").addEventListener("click", () => {
+    selectedDate = addDays(selectedDate, 1);
+    startDateListeners();
+    startHistoryListener();
+  });
+
+  $("saveEditBtn").addEventListener("click", async () => {
+    if (!isSupervisor) return;
+
+    const targets = {
+      "市民卡 APP": Number($("editApp").value),
+      "親友": Number($("editFriend").value),
+      "路過": Number($("editWalk").value),
+      "KOL": Number($("editKol").value),
+      "實體廣告": Number($("editAd").value),
+      "其他": Number($("editOther").value)
+    };
+
+    const visitorCount = Number($("editVisitor").value);
+    const giftCount = Number($("editGift").value);
+
+    const allNumbers = [...Object.values(targets), visitorCount, giftCount];
+    if (allNumbers.some(n => !Number.isInteger(n) || n < 0)) {
+      alert("所有數字都必須是 0 以上的整數。");
+      return;
+    }
+
+    const adjustments = {};
+    SOURCES.forEach(source => {
+      adjustments[source] = targets[source] - baseCount(source);
+    });
+
+    await setDoc(doc(db, "dailyStats", selectedDate), {
+      dateKey: selectedDate,
+      visitorCount,
+      giftCount,
+      adjustments,
+      supervisorUpdatedAt: serverTimestamp()
+    }, { merge: true });
+
+    alert("主管修正已儲存。");
+  });
+
+  onAuthStateChanged(auth, user => {
+    currentUser = user;
+
+    if (!user) {
+      $("loginView").classList.remove("hidden");
+      $("adminView").classList.add("hidden");
+      if (stopRecords) stopRecords();
+      if (stopDaily) stopDaily();
+      if (stopHistory) stopHistory();
+      return;
+    }
+
+    isSupervisor = user.uid === SUPERVISOR_UID;
+
+    $("loginView").classList.add("hidden");
+    $("adminView").classList.remove("hidden");
+    $("userEmail").textContent = user.email || user.uid;
+
+    $("roleBadge").textContent = isSupervisor ? "主管・可編輯" : "檢視者・唯讀";
+    $("roleBadge").className = isSupervisor ? "badge supervisor" : "badge";
+
+    $("supervisorPanel").classList.toggle("hidden", !isSupervisor);
+
+    selectedDate = taipeiDateKey();
+    startDateListeners();
+    startHistoryListener();
+  });
+</script>
+</body>
+</html>
